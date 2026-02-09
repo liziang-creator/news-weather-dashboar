@@ -1,0 +1,1553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>News & Weather Dashboard</title>
+  <meta name="description" content="Professional dashboard integrating OpenWeatherMap weather and The Guardian news."/>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.09);
+      --border: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.70);
+      --muted2: rgba(255,255,255,.55);
+      --good: #3be38f;
+      --warn: #ffd166;
+      --bad: #ff5c7a;
+      --accent: #7aa7ff;
+      --accent2: #64f3ff;
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --gap: 14px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 15% 15%, rgba(122,167,255,.25), transparent 60%),
+        radial-gradient(900px 600px at 80% 10%, rgba(100,243,255,.16), transparent 55%),
+        radial-gradient(800px 700px at 60% 90%, rgba(59,227,143,.10), transparent 55%),
+        linear-gradient(180deg, #07101f, #050a14 65%, #050814);
+      overflow-x:hidden;
+    }
+
+    /* subtle animated noise glow */
+    .glow{
+      position: fixed;
+      inset:-80px;
+      pointer-events:none;
+      background: radial-gradient(900px 600px at 40% 30%, rgba(122,167,255,.10), transparent 65%);
+      filter: blur(22px);
+      opacity:.8;
+      animation: drift 10s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    @keyframes drift{
+      from{ transform: translate3d(-8px,-6px,0) scale(1); opacity:.65; }
+      to{ transform: translate3d(10px,8px,0) scale(1.03); opacity:.9; }
+    }
+
+    a{ color: inherit; text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .wrap{
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 16px 28px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      margin: 8px 0 16px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 220px;
+    }
+    .logo{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(122,167,255,.9), rgba(100,243,255,.7));
+      box-shadow: 0 10px 35px rgba(122,167,255,.25);
+      position: relative;
+      overflow:hidden;
+    }
+    .logo::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.8), transparent 50%);
+      transform: rotate(20deg);
+      opacity:.45;
+      animation: sheen 2.8s ease-in-out infinite;
+    }
+    @keyframes sheen{
+      0%{ transform: translateX(-20px) translateY(10px) rotate(20deg); opacity:.25; }
+      50%{ transform: translateX(18px) translateY(-12px) rotate(20deg); opacity:.55; }
+      100%{ transform: translateX(-20px) translateY(10px) rotate(20deg); opacity:.25; }
+    }
+
+    .brand h1{
+      font-size: 16px;
+      margin:0;
+      line-height:1.1;
+      letter-spacing:.2px;
+      font-weight: 700;
+    }
+    .brand p{
+      margin: 3px 0 0;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap: wrap;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.18);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      user-select:none;
+    }
+    .pill:hover{ transform: translateY(-1px); background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); }
+    .pill:active{ transform: translateY(0px); }
+    .kbd{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .btn{
+      appearance:none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      font-weight: 650;
+      letter-spacing: .2px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.085); border-color: rgba(255,255,255,.18); }
+    .btn:active{ transform: translateY(0); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(122,167,255,.85), rgba(100,243,255,.55));
+      border-color: rgba(255,255,255,.22);
+      color: #07101f;
+      box-shadow: 0 16px 42px rgba(122,167,255,.18);
+    }
+    .btn.primary:hover{ filter: brightness(1.02); }
+    .btn.danger{
+      background: rgba(255,92,122,.14);
+      border-color: rgba(255,92,122,.28);
+      color: rgba(255,255,255,.93);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr 1.45fr;
+      gap: var(--gap);
+      align-items: start;
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.05));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      overflow:hidden;
+      transform: translateY(0);
+      animation: popin .28s ease-out both;
+    }
+    @keyframes popin{
+      from{ opacity:0; transform: translateY(6px); }
+      to{ opacity:1; transform: translateY(0px); }
+    }
+
+    .card .hd{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      gap: 10px;
+    }
+    .card .hd h2{
+      margin:0;
+      font-size: 14px;
+      letter-spacing: .3px;
+      font-weight: 750;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .badge{
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 5px 9px;
+      border-radius: 999px;
+    }
+
+    .card .bd{
+      padding: 14px;
+    }
+
+    .row{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      flex: 1;
+      min-width: 220px;
+    }
+    label{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      gap: 8px;
+      align-items:center;
+    }
+    .hint{
+      display:inline-flex;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      align-items:center;
+      justify-content:center;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.16);
+      color: rgba(255,255,255,.75);
+      background: rgba(255,255,255,.06);
+      cursor: help;
+      position: relative;
+    }
+    .hint[data-tip]:hover::after{
+      content: attr(data-tip);
+      position:absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(320px, 70vw);
+      background: rgba(10,16,31,.96);
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.9);
+      padding: 10px 10px;
+      border-radius: 12px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.55);
+      font-size: 12px;
+      line-height: 1.35;
+      white-space: normal;
+      z-index: 5;
+    }
+    .hint[data-tip]:hover::before{
+      content:"";
+      position:absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 8px solid transparent;
+      border-top-color: rgba(255,255,255,.14);
+      z-index: 5;
+    }
+
+    input, select{
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      outline: none;
+      transition: border-color .18s ease, background .18s ease;
+    }
+    input::placeholder{ color: rgba(255,255,255,.45); }
+    input:focus, select:focus{
+      border-color: rgba(122,167,255,.55);
+      background: rgba(255,255,255,.085);
+    }
+    select option{ background: #0b1220; color: #fff; }
+
+    .status{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot{
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 4px rgba(255,255,255,.06);
+    }
+    .dot.good{ background: var(--good); box-shadow: 0 0 0 4px rgba(59,227,143,.15); }
+    .dot.warn{ background: var(--warn); box-shadow: 0 0 0 4px rgba(255,209,102,.16); }
+    .dot.bad{ background: var(--bad); box-shadow: 0 0 0 4px rgba(255,92,122,.14); }
+
+    /* Weather */
+    .weather-now{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items:center;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .temp{
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.8px;
+    }
+    .sub{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .meta{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      color: rgba(255,255,255,.82);
+      font-size: 12px;
+    }
+    .chip{
+      display:inline-flex;
+      gap: 8px;
+      align-items:center;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.86);
+    }
+
+    .forecast{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .day{
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      min-height: 92px;
+    }
+    .day:hover{ transform: translateY(-2px); background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
+    .day .d1{ font-size: 12px; color: var(--muted); }
+    .day .d2{ font-size: 16px; font-weight: 780; margin-top: 4px; }
+    .day .d3{ font-size: 12px; color: rgba(255,255,255,.76); margin-top: 6px; line-height: 1.25; }
+
+    /* News */
+    .news-controls{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+    .news-list{
+      margin-top: 12px;
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .headline{
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      display:flex;
+      gap: 12px;
+      align-items:flex-start;
+    }
+    .headline:hover{ transform: translateY(-2px); background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
+    .h-left{ flex: 1; min-width: 0; }
+    .headline .title{
+      font-weight: 780;
+      letter-spacing: .2px;
+      line-height: 1.25;
+      margin: 0;
+      font-size: 14px;
+    }
+    .headline .desc{
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .headline .meta2{
+      margin-top: 8px;
+      display:flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: rgba(255,255,255,.75);
+      font-size: 12px;
+    }
+    .tag{
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.82);
+    }
+
+    /* Loading skeleton */
+    .skeleton{
+      position: relative;
+      overflow:hidden;
+      background: rgba(255,255,255,.05);
+    }
+    .skeleton::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+      transform: translateX(-100%);
+      animation: shimmer 1.15s infinite;
+    }
+    @keyframes shimmer{
+      100%{ transform: translateX(100%); }
+    }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      background: rgba(10,16,31,.94);
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.92);
+      padding: 12px 12px;
+      border-radius: 14px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.55);
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      width: min(720px, calc(100vw - 24px));
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index: 50;
+    }
+    .toast.show{
+      opacity: 1;
+      pointer-events:auto;
+      transform: translateX(-50%) translateY(-2px);
+    }
+    .toast .t-ic{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-top: 4px;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 4px rgba(255,255,255,.06);
+      flex: 0 0 auto;
+    }
+    .toast.good .t-ic{ background: var(--good); box-shadow: 0 0 0 4px rgba(59,227,143,.16); }
+    .toast.warn .t-ic{ background: var(--warn); box-shadow: 0 0 0 4px rgba(255,209,102,.16); }
+    .toast.bad  .t-ic{ background: var(--bad);  box-shadow: 0 0 0 4px rgba(255,92,122,.15); }
+
+    .toast .t-title{ font-weight: 780; font-size: 13px; margin:0; }
+    .toast .t-msg{ margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,.78); line-height: 1.35; }
+    .toast .t-close{
+      margin-left:auto;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.86);
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor:pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+    .toast .t-close:hover{ background: rgba(255,255,255,.07); transform: translateY(-1px); }
+
+    /* Settings panel */
+    .settings{
+      margin-top: var(--gap);
+    }
+    details.settings-panel{
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.05));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(12px);
+      animation: popin .28s ease-out both;
+    }
+    details.settings-panel > summary{
+      list-style:none;
+      cursor:pointer;
+      padding: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      user-select:none;
+    }
+    details.settings-panel > summary::-webkit-details-marker{ display:none; }
+    .sum-left{ display:flex; align-items:center; gap: 10px; }
+    .sum-title{
+      margin:0;
+      font-size: 14px;
+      font-weight: 780;
+      letter-spacing: .3px;
+    }
+    .sum-sub{
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+    .chev{
+      transition: transform .18s ease;
+      opacity: .85;
+    }
+    details[open] .chev{ transform: rotate(180deg); }
+
+    .settings-body{
+      padding: 14px;
+    }
+    .callout{
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.84);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .callout strong{ color: rgba(255,255,255,.93); }
+
+    .divider{
+      height:1px;
+      background: rgba(255,255,255,.08);
+      margin: 12px 0;
+    }
+
+    .inline-note{
+      font-size: 12px;
+      color: var(--muted2);
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .foot{
+      margin-top: 12px;
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px){
+      .forecast{ grid-template-columns: 1fr 1fr; }
+      .brand{ min-width: unset; }
+      header{ align-items: flex-start; flex-direction: column; }
+      .top-actions{ width: 100%; justify-content: flex-start; }
+      .field{ min-width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="glow"></div>
+
+  <div class="wrap">
+    <header>
+      <div class="brand" aria-label="Dashboard header">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Context Intelligence Desk</h1>
+          <p>Weather + breaking headlines • business-ready dashboard</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="pill" id="keysPill" title="API keys status">
+          <span class="dot" id="keysDot" aria-hidden="true"></span>
+          <span class="kbd" id="keysText">Keys not configured</span>
+        </div>
+        <button class="btn" id="refreshBtn" type="button" title="Refresh weather and news">
+          ⟳ Refresh
+        </button>
+        <button class="btn primary" id="openSettingsBtn" type="button" title="Open API configuration panel">
+          ⚙︎ API Settings
+        </button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- WEATHER -->
+      <section class="card" aria-label="Weather panel">
+        <div class="hd">
+          <h2>⛅ Weather</h2>
+          <span class="badge" id="weatherBadge">Idle</span>
+        </div>
+
+        <div class="bd">
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="field">
+              <label for="cityInput">
+                City
+                <span class="hint" data-tip="Tip: use ‘Paris,FR’ or ‘New York,US’ for better accuracy.">
+                  ?
+                </span>
+              </label>
+              <input id="cityInput" placeholder="e.g., Paris,FR" autocomplete="off" />
+            </div>
+            <button class="btn primary" id="weatherGoBtn" type="button" style="margin-top: 18px;">
+              Get Weather
+            </button>
+          </div>
+
+          <div id="weatherNow" class="weather-now">
+            <div>
+              <div class="temp skeleton" style="width: 180px; height: 44px; border-radius: 12px;"></div>
+              <div class="sub skeleton" style="width: 260px; height: 14px; border-radius: 8px; margin-top: 10px;"></div>
+              <div class="meta" style="margin-top: 12px;">
+                <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+                <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+                <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+              </div>
+            </div>
+            <div class="chip skeleton" style="width: 84px; height: 84px; border-radius: 18px;"></div>
+          </div>
+
+          <div class="forecast" id="forecast">
+            <!-- forecast cards injected -->
+          </div>
+
+          <div class="status">
+            <span class="dot warn" aria-hidden="true"></span>
+            <span id="weatherStatusText">Enter a city and configure your OpenWeatherMap key.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- NEWS -->
+      <section class="card" aria-label="News panel">
+        <div class="hd">
+          <h2>🗞️ News</h2>
+          <span class="badge" id="newsBadge">Idle</span>
+        </div>
+
+        <div class="bd">
+          <div class="news-controls">
+            <div class="field" style="min-width: 260px;">
+              <label for="newsQuery">
+                Search headlines
+                <span class="hint" data-tip="Search is powered by The Guardian Content API. Example: ‘elections’, ‘inflation’, ‘AI regulation’.">
+                  ?
+                </span>
+              </label>
+              <input id="newsQuery" placeholder="Type keywords…" autocomplete="off"/>
+            </div>
+
+            <div class="field" style="min-width: 200px; max-width: 240px;">
+              <label for="newsSection">
+                Category
+                <span class="hint" data-tip="Category maps to Guardian ‘section’ parameter (e.g., world, business, technology).">
+                  ?
+                </span>
+              </label>
+              <select id="newsSection">
+                <option value="">Top / All</option>
+                <option value="world">World</option>
+                <option value="business">Business</option>
+                <option value="technology">Technology</option>
+                <option value="politics">Politics</option>
+                <option value="science">Science</option>
+                <option value="environment">Environment</option>
+                <option value="sport">Sport</option>
+                <option value="culture">Culture</option>
+              </select>
+            </div>
+
+            <div class="field" style="min-width: 160px; max-width: 200px;">
+              <label for="newsOrderBy">
+                Sort
+                <span class="hint" data-tip="‘Newest’ is best for breaking coverage. ‘Relevance’ is best for keyword search.">
+                  ?
+                </span>
+              </label>
+              <select id="newsOrderBy">
+                <option value="newest">Newest</option>
+                <option value="relevance">Relevance</option>
+              </select>
+            </div>
+
+            <button class="btn primary" id="newsGoBtn" type="button" style="margin-top: 18px;">
+              Search
+            </button>
+          </div>
+
+          <div class="news-list" id="newsList" aria-live="polite" aria-busy="false">
+            <!-- headlines injected -->
+          </div>
+
+          <div class="status">
+            <span class="dot warn" id="newsDot" aria-hidden="true"></span>
+            <span id="newsStatusText">Configure your Guardian API key to load headlines.</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- SETTINGS (collapsible panel) -->
+    <section class="settings" aria-label="API configuration">
+      <details class="settings-panel" id="settingsPanel">
+        <summary>
+          <div class="sum-left">
+            <div>
+              <div class="sum-title">API Configuration</div>
+              <div class="sum-sub">Save keys to localStorage • validation + test</div>
+            </div>
+          </div>
+          <div class="chev" aria-hidden="true">⌄</div>
+        </summary>
+
+        <div class="settings-body">
+          <div class="callout">
+            <strong>How to get free API keys</strong><br/>
+            • <strong>OpenWeatherMap</strong>: create an account on OpenWeatherMap → generate an API key (often under “API keys”).<br/>
+            • <strong>The Guardian</strong>: register for a Content API key → use it with
+            <code style="color: rgba(255,255,255,.9); background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,.10);">https://content.guardianapis.com/search?api-key=YOUR_KEY</code>
+            (no CORS restrictions; free tier is generous).<br/><br/>
+            <strong>Privacy note:</strong> This is a client-side demo. Keys are stored in your browser’s <code style="color: rgba(255,255,255,.9); background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,.10);">localStorage</code> for convenience.
+            Avoid using sensitive keys on shared/public machines.
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <div class="field">
+              <label for="owmKey">
+                OpenWeatherMap API Key
+                <span class="hint" data-tip="Required for weather. We validate by making a lightweight request.">
+                  ?
+                </span>
+              </label>
+              <input id="owmKey" placeholder="Paste OpenWeatherMap key…" autocomplete="off" />
+              <div class="inline-note" id="owmHelp">Used for current conditions + 5-day forecast.</div>
+            </div>
+
+            <div class="field">
+              <label for="guardianKey">
+                Guardian API Key
+                <span class="hint" data-tip="Required for news. We validate by calling /search endpoint.">
+                  ?
+                </span>
+              </label>
+              <input id="guardianKey" placeholder="Paste Guardian key…" autocomplete="off" />
+              <div class="inline-note" id="guardianHelp">Used for headlines + keyword search + section filters.</div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: 12px;">
+            <button class="btn primary" id="saveKeysBtn" type="button">Save & Validate</button>
+            <button class="btn" id="testKeysBtn" type="button">Test Keys</button>
+            <button class="btn danger" id="clearKeysBtn" type="button">Clear Keys</button>
+            <span class="status" style="margin:0;">
+              <span class="dot" id="settingsDot" aria-hidden="true"></span>
+              <span id="settingsStatusText">No keys saved.</span>
+            </span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="foot">
+            <div>Data sources: OpenWeatherMap (weather) • The Guardian Content API (news)</div>
+            <div>Tip: Press <strong>Enter</strong> in search boxes to run.</div>
+          </div>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <div class="t-ic" aria-hidden="true"></div>
+    <div>
+      <p class="t-title" id="toastTitle">Notice</p>
+      <p class="t-msg" id="toastMsg">…</p>
+    </div>
+    <button class="t-close" id="toastClose" type="button">Close</button>
+  </div>
+
+  <script>
+    /**
+     * Production-friendly single-file dashboard:
+     * - localStorage key management with validation
+     * - OpenWeatherMap current + 5-day forecast (summarized daily)
+     * - Guardian Content API search w/ section filters and sorting
+     * - Loading states, error handling, and user feedback
+     */
+
+    // ====== Constants / Storage ======
+    const STORAGE_KEYS = {
+      OWM: "dash_openweathermap_key",
+      GUARDIAN: "dash_guardian_key",
+      CITY: "dash_city"
+    };
+
+    const OWM_BASE = "https://api.openweathermap.org/data/2.5";
+    // Weather endpoints:
+    // - Current: /weather?q={city}&appid={key}&units=metric
+    // - Forecast: /forecast?q={city}&appid={key}&units=metric (3-hour steps)
+    const GUARDIAN_BASE = "https://content.guardianapis.com/search";
+
+    const DEFAULT_CITY = "Paris,FR";
+
+    // ====== DOM ======
+    const els = {
+      // top
+      refreshBtn: document.getElementById("refreshBtn"),
+      openSettingsBtn: document.getElementById("openSettingsBtn"),
+      settingsPanel: document.getElementById("settingsPanel"),
+      keysDot: document.getElementById("keysDot"),
+      keysText: document.getElementById("keysText"),
+
+      // weather
+      cityInput: document.getElementById("cityInput"),
+      weatherGoBtn: document.getElementById("weatherGoBtn"),
+      weatherBadge: document.getElementById("weatherBadge"),
+      weatherNow: document.getElementById("weatherNow"),
+      forecast: document.getElementById("forecast"),
+      weatherStatusText: document.getElementById("weatherStatusText"),
+
+      // news
+      newsQuery: document.getElementById("newsQuery"),
+      newsSection: document.getElementById("newsSection"),
+      newsOrderBy: document.getElementById("newsOrderBy"),
+      newsGoBtn: document.getElementById("newsGoBtn"),
+      newsBadge: document.getElementById("newsBadge"),
+      newsList: document.getElementById("newsList"),
+      newsDot: document.getElementById("newsDot"),
+      newsStatusText: document.getElementById("newsStatusText"),
+
+      // settings inputs
+      owmKey: document.getElementById("owmKey"),
+      guardianKey: document.getElementById("guardianKey"),
+      saveKeysBtn: document.getElementById("saveKeysBtn"),
+      testKeysBtn: document.getElementById("testKeysBtn"),
+      clearKeysBtn: document.getElementById("clearKeysBtn"),
+      settingsDot: document.getElementById("settingsDot"),
+      settingsStatusText: document.getElementById("settingsStatusText"),
+
+      // toast
+      toast: document.getElementById("toast"),
+      toastTitle: document.getElementById("toastTitle"),
+      toastMsg: document.getElementById("toastMsg"),
+      toastClose: document.getElementById("toastClose"),
+    };
+
+    // ====== Utilities ======
+    function safeTrim(v){ return (v ?? "").toString().trim(); }
+
+    function setBadge(el, text, tone="neutral"){
+      el.textContent = text;
+      el.style.background =
+        tone === "good" ? "rgba(59,227,143,.16)" :
+        tone === "warn" ? "rgba(255,209,102,.16)" :
+        tone === "bad"  ? "rgba(255,92,122,.16)" :
+        "rgba(255,255,255,.08)";
+      el.style.borderColor =
+        tone === "good" ? "rgba(59,227,143,.26)" :
+        tone === "warn" ? "rgba(255,209,102,.26)" :
+        tone === "bad"  ? "rgba(255,92,122,.26)" :
+        "rgba(255,255,255,.12)";
+    }
+
+    function showToast(kind, title, msg){
+      const toast = els.toast;
+      toast.classList.remove("good","warn","bad");
+      toast.classList.add("show");
+      toast.classList.add(kind);
+      toast.querySelector(".t-ic").className = "t-ic";
+      els.toastTitle.textContent = title;
+      els.toastMsg.textContent = msg;
+
+      // auto-hide (but not if user interacts)
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove("show"), 4500);
+    }
+
+    els.toastClose.addEventListener("click", () => els.toast.classList.remove("show"));
+
+    function setDot(dotEl, state){
+      dotEl.classList.remove("good","warn","bad");
+      if(state === "good") dotEl.classList.add("good");
+      else if(state === "warn") dotEl.classList.add("warn");
+      else if(state === "bad") dotEl.classList.add("bad");
+    }
+
+    function formatDayShort(date){
+      return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
+    }
+
+    function formatDateTime(date){
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric", month: "short", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+      }).format(date);
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function isLikelyKey(value){
+      const v = safeTrim(value);
+      // Minimal sanity check: at least 16 chars, no spaces.
+      return v.length >= 16 && !/\s/.test(v);
+    }
+
+    function readKey(which){
+      return safeTrim(localStorage.getItem(which));
+    }
+
+    function writeKey(which, value){
+      localStorage.setItem(which, safeTrim(value));
+    }
+
+    function clearKeys(){
+      localStorage.removeItem(STORAGE_KEYS.OWM);
+      localStorage.removeItem(STORAGE_KEYS.GUARDIAN);
+    }
+
+    function setBusy(container, busy){
+      container.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+
+    async function fetchJson(url, { timeoutMs = 12000 } = {}){
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      try{
+        const res = await fetch(url, { signal: controller.signal });
+        const contentType = res.headers.get("content-type") || "";
+
+        // Attempt to parse JSON even on error; Guardian/OWM often returns JSON error payloads.
+        let data = null;
+        if(contentType.includes("application/json")){
+          data = await res.json().catch(() => null);
+        }else{
+          const text = await res.text().catch(() => "");
+          data = { _nonJson: true, text };
+        }
+
+        if(!res.ok){
+          const msg = data?.message || data?.response?.message || data?.text || `HTTP ${res.status}`;
+          const err = new Error(msg);
+          err.status = res.status;
+          err.payload = data;
+          throw err;
+        }
+        return data;
+      } catch(err){
+        if(err.name === "AbortError"){
+          throw new Error("Request timed out. Please try again.");
+        }
+        throw err;
+      } finally{
+        clearTimeout(id);
+      }
+    }
+
+    // ====== Key Status UI ======
+    function updateKeyStatusUI(){
+      const owm = readKey(STORAGE_KEYS.OWM);
+      const gdn = readKey(STORAGE_KEYS.GUARDIAN);
+
+      const hasOWM = isLikelyKey(owm);
+      const hasGDN = isLikelyKey(gdn);
+
+      // top pill
+      if(hasOWM && hasGDN){
+        setDot(els.keysDot, "good");
+        els.keysText.textContent = "Keys configured";
+      }else if(hasOWM || hasGDN){
+        setDot(els.keysDot, "warn");
+        els.keysText.textContent = "Partial keys configured";
+      }else{
+        setDot(els.keysDot, "bad");
+        els.keysText.textContent = "Keys not configured";
+      }
+
+      // settings panel status
+      if(hasOWM && hasGDN){
+        setDot(els.settingsDot, "good");
+        els.settingsStatusText.textContent = "Both keys saved (ready).";
+      }else if(hasOWM || hasGDN){
+        setDot(els.settingsDot, "warn");
+        els.settingsStatusText.textContent = "One key saved. Add the missing key for full functionality.";
+      }else{
+        setDot(els.settingsDot, "bad");
+        els.settingsStatusText.textContent = "No keys saved yet.";
+      }
+
+      // panel input fill
+      els.owmKey.value = owm || "";
+      els.guardianKey.value = gdn || "";
+
+      // section hints
+      els.weatherStatusText.textContent =
+        hasOWM ? "Ready. Enter a city to load weather." : "Enter a city and configure your OpenWeatherMap key.";
+      els.newsStatusText.textContent =
+        hasGDN ? "Ready. Search or choose a category to load headlines." : "Configure your Guardian API key to load headlines.";
+      setDot(els.newsDot, hasGDN ? "good" : "warn");
+    }
+
+    // ====== Weather Rendering ======
+    function renderWeatherLoading(){
+      setBadge(els.weatherBadge, "Loading…", "warn");
+      els.weatherNow.innerHTML = `
+        <div>
+          <div class="temp skeleton" style="width: 180px; height: 44px; border-radius: 12px;"></div>
+          <div class="sub skeleton" style="width: 260px; height: 14px; border-radius: 8px; margin-top: 10px;"></div>
+          <div class="meta" style="margin-top: 12px;">
+            <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+            <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+            <div class="chip skeleton" style="width: 110px; height: 28px; border-radius: 999px;"></div>
+          </div>
+        </div>
+        <div class="chip skeleton" style="width: 84px; height: 84px; border-radius: 18px;"></div>
+      `;
+      els.forecast.innerHTML = Array.from({length:5}).map(() => `
+        <div class="day skeleton" style="height: 92px; border-radius: 14px;"></div>
+      `).join("");
+    }
+
+    function renderWeatherError(message){
+      setBadge(els.weatherBadge, "Error", "bad");
+      els.weatherNow.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 6px 2px;">
+          <div style="font-weight: 780; color: rgba(255,255,255,.93);">Could not load weather</div>
+          <div style="margin-top: 6px; font-size: 12px; color: rgba(255,255,255,.72); line-height: 1.35;">
+            ${escapeHtml(message)}
+          </div>
+          <div style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,.60);">
+            Tip: verify city format (e.g., “Paris,FR”) and check your OpenWeatherMap key in API Settings.
+          </div>
+        </div>
+      `;
+      els.forecast.innerHTML = "";
+    }
+
+    function renderWeatherSuccess(now, daily){
+      const cityName = `${now.name}${now.sys?.country ? ", " + now.sys.country : ""}`;
+      const temp = Math.round(now.main?.temp);
+      const feels = Math.round(now.main?.feels_like);
+      const humidity = now.main?.humidity;
+      const wind = now.wind?.speed;
+      const desc = (now.weather?.[0]?.description || "—").replace(/^\w/, c => c.toUpperCase());
+      const icon = now.weather?.[0]?.icon || "";
+
+      const updatedAt = new Date((now.dt || Date.now()/1000) * 1000);
+
+      setBadge(els.weatherBadge, cityName || "Weather", "good");
+
+      const iconUrl = icon ? `https://openweathermap.org/img/wn/${icon}@2x.png` : "";
+
+      els.weatherNow.innerHTML = `
+        <div>
+          <div class="temp">${Number.isFinite(temp) ? `${temp}°C` : "—"}</div>
+          <div class="sub">
+            ${escapeHtml(desc)} • Updated ${escapeHtml(formatDateTime(updatedAt))}
+          </div>
+          <div class="meta">
+            <span class="chip">Feels <strong>${Number.isFinite(feels) ? `${feels}°C` : "—"}</strong></span>
+            <span class="chip">Humidity <strong>${humidity ?? "—"}%</strong></span>
+            <span class="chip">Wind <strong>${wind ?? "—"} m/s</strong></span>
+          </div>
+        </div>
+        <div class="chip" style="justify-content:center; width: 92px; height: 92px;">
+          ${iconUrl ? `<img alt="Weather icon" src="${iconUrl}" width="70" height="70" style="filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));"/>`
+                    : `<span style="font-weight: 800; font-size: 28px;">⛅</span>`}
+        </div>
+      `;
+
+      els.forecast.innerHTML = daily.slice(0,5).map(d => {
+        const dayName = formatDayShort(d.date);
+        const hi = Math.round(d.max);
+        const lo = Math.round(d.min);
+        const summary = d.summary || "—";
+        return `
+          <div class="day">
+            <div class="d1">${escapeHtml(dayName)}</div>
+            <div class="d2">${Number.isFinite(hi) ? `${hi}°` : "—"} / ${Number.isFinite(lo) ? `${lo}°` : "—"}</div>
+            <div class="d3">${escapeHtml(summary)}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function summarizeForecast(list){
+      // list: OWM /forecast -> array of 3-hour items
+      // Summarize into daily min/max and most common weather description
+      const byDay = new Map();
+
+      for(const item of (list || [])){
+        const dt = new Date((item.dt || 0) * 1000);
+        // Use local date (browser) – fine for dashboards
+        const dayKey = dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+
+        if(!byDay.has(dayKey)){
+          byDay.set(dayKey, {
+            date: new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()),
+            min: Infinity,
+            max: -Infinity,
+            descCount: new Map()
+          });
+        }
+        const bucket = byDay.get(dayKey);
+        const t = item.main?.temp;
+        if(Number.isFinite(t)){
+          bucket.min = Math.min(bucket.min, t);
+          bucket.max = Math.max(bucket.max, t);
+        }
+        const desc = item.weather?.[0]?.description;
+        if(desc){
+          bucket.descCount.set(desc, (bucket.descCount.get(desc) || 0) + 1);
+        }
+      }
+
+      // sort keys by date and pick the next 5 days (excluding "today" if you want, but keep it simple)
+      const days = Array.from(byDay.values()).sort((a,b)=> a.date - b.date);
+
+      return days.map(d => {
+        let topDesc = "—";
+        let top = 0;
+        for(const [k,v] of d.descCount.entries()){
+          if(v > top){ top = v; topDesc = k; }
+        }
+        topDesc = topDesc.replace(/^\w/, c => c.toUpperCase());
+        return {
+          date: d.date,
+          min: d.min === Infinity ? NaN : d.min,
+          max: d.max === -Infinity ? NaN : d.max,
+          summary: topDesc
+        };
+      });
+    }
+
+    async function loadWeather(city){
+      const owmKey = readKey(STORAGE_KEYS.OWM);
+      if(!isLikelyKey(owmKey)){
+        showToast("warn","OpenWeatherMap key missing","Open API Settings and add your OpenWeatherMap API key to fetch weather.");
+        renderWeatherError("Missing OpenWeatherMap API key.");
+        return;
+      }
+      const q = safeTrim(city) || DEFAULT_CITY;
+
+      renderWeatherLoading();
+      try{
+        const nowUrl = `${OWM_BASE}/weather?q=${encodeURIComponent(q)}&appid=${encodeURIComponent(owmKey)}&units=metric`;
+        const fcUrl  = `${OWM_BASE}/forecast?q=${encodeURIComponent(q)}&appid=${encodeURIComponent(owmKey)}&units=metric`;
+
+        const [now, fc] = await Promise.all([fetchJson(nowUrl), fetchJson(fcUrl)]);
+        const daily = summarizeForecast(fc?.list);
+
+        renderWeatherSuccess(now, daily);
+        showToast("good","Weather updated", `Loaded current conditions and a 5-day forecast for ${q}.`);
+      } catch(err){
+        const msg = humanizeWeatherError(err);
+        renderWeatherError(msg);
+        showToast("bad","Weather error", msg);
+      } finally{
+        setBadge(els.weatherBadge, "Weather", "neutral");
+      }
+    }
+
+    function humanizeWeatherError(err){
+      const raw = (err?.message || "Unknown error").toString();
+
+      // common OpenWeatherMap errors:
+      if(/401/i.test(raw)) return "Unauthorized (401). Your OpenWeatherMap API key may be invalid or not activated yet.";
+      if(/404/i.test(raw) || /city not found/i.test(raw)) return "City not found. Try using the format “City,CountryCode” (e.g., Paris,FR).";
+      if(/429/i.test(raw)) return "Rate limit reached. Please wait a bit and try again.";
+      return raw;
+    }
+
+    // ====== News Rendering ======
+    function renderNewsLoading(){
+      setBadge(els.newsBadge, "Loading…", "warn");
+      setBusy(els.newsList, true);
+      els.newsList.innerHTML = Array.from({length: 6}).map(() => `
+        <div class="headline skeleton" style="height: 84px; border-radius: 14px;"></div>
+      `).join("");
+    }
+
+    function renderNewsError(message){
+      setBadge(els.newsBadge, "Error", "bad");
+      setBusy(els.newsList, false);
+      els.newsList.innerHTML = `
+        <div class="headline" style="border-color: rgba(255,92,122,.22); background: rgba(255,92,122,.08);">
+          <div class="h-left">
+            <p class="title" style="margin:0;">Could not load headlines</p>
+            <p class="desc" style="margin-top: 8px;">${escapeHtml(message)}</p>
+            <div class="meta2">
+              <span class="tag">Tip: Check your Guardian API key in API Settings.</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNewsSuccess(results, label){
+      setBadge(els.newsBadge, label || "Headlines", "good");
+      setBusy(els.newsList, false);
+
+      if(!results || results.length === 0){
+        els.newsList.innerHTML = `
+          <div class="headline">
+            <div class="h-left">
+              <p class="title" style="margin:0;">No results</p>
+              <p class="desc" style="margin-top: 8px;">Try a different search term or category.</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      els.newsList.innerHTML = results.map(item => {
+        const title = item.webTitle || "Untitled";
+        const url = item.webUrl || "#";
+        const section = item.sectionName || item.sectionId || "News";
+        const date = item.webPublicationDate ? new Date(item.webPublicationDate) : null;
+        const when = date ? formatDateTime(date) : "—";
+
+        return `
+          <a class="headline" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">
+            <div class="h-left">
+              <p class="title">${escapeHtml(title)}</p>
+              <p class="desc">Open story on The Guardian (new tab).</p>
+              <div class="meta2">
+                <span class="tag">${escapeHtml(section)}</span>
+                <span class="tag">${escapeHtml(when)}</span>
+              </div>
+            </div>
+            <div class="tag" style="margin-top: 2px;">↗</div>
+          </a>
+        `;
+      }).join("");
+    }
+
+    async function loadNews({ query, section, orderBy }){
+      const guardianKey = readKey(STORAGE_KEYS.GUARDIAN);
+      if(!isLikelyKey(guardianKey)){
+        showToast("warn","Guardian key missing","Open API Settings and add your Guardian API key to fetch headlines.");
+        renderNewsError("Missing Guardian API key.");
+        return;
+      }
+
+      const q = safeTrim(query);
+      const sec = safeTrim(section);
+      const sort = safeTrim(orderBy) || "newest";
+
+      // Build Guardian search:
+      // https://content.guardianapis.com/search?api-key=YOUR_KEY
+      // Useful params: q, section, order-by, page-size, show-fields (optional)
+      // Keep it lean for performance.
+      const params = new URLSearchParams();
+      params.set("api-key", guardianKey);
+      params.set("page-size", "10");
+      params.set("order-by", sort);
+      if(q) params.set("q", q);
+      if(sec) params.set("section", sec);
+
+      const url = `${GUARDIAN_BASE}?${params.toString()}`;
+
+      renderNewsLoading();
+      try{
+        const data = await fetchJson(url);
+        const results = data?.response?.results || [];
+        const label = q ? `Results for “${q}”` : (sec ? `${capitalize(sec)} headlines` : "Top headlines");
+        renderNewsSuccess(results, label);
+        showToast("good","News updated", "Loaded the latest headlines from The Guardian.");
+      } catch(err){
+        const msg = humanizeGuardianError(err);
+        renderNewsError(msg);
+        showToast("bad","News error", msg);
+      }
+    }
+
+    function humanizeGuardianError(err){
+      const raw = (err?.message || "Unknown error").toString();
+      if(/401|403/i.test(raw)) return "Unauthorized. Your Guardian API key may be invalid.";
+      if(/429/i.test(raw)) return "Rate limit reached. Please try again later.";
+      return raw;
+    }
+
+    function capitalize(s){
+      s = safeTrim(s);
+      return s ? s[0].toUpperCase() + s.slice(1) : s;
+    }
+
+    // ====== Validation / Settings ======
+    async function validateKeys({ owmKey, guardianKey }){
+      const out = { owm: { ok:false, msg:"" }, guardian: { ok:false, msg:"" } };
+
+      // Validate OpenWeatherMap by calling weather for a known city
+      if(isLikelyKey(owmKey)){
+        try{
+          const testUrl = `${OWM_BASE}/weather?q=${encodeURIComponent(DEFAULT_CITY)}&appid=${encodeURIComponent(owmKey)}&units=metric`;
+          await fetchJson(testUrl, { timeoutMs: 9000 });
+          out.owm.ok = true;
+          out.owm.msg = "OpenWeatherMap key valid.";
+        } catch(e){
+          out.owm.ok = false;
+          out.owm.msg = humanizeWeatherError(e);
+        }
+      }else{
+        out.owm.ok = false;
+        out.owm.msg = "Key format looks invalid (too short or contains spaces).";
+      }
+
+      // Validate Guardian by calling base search
+      if(isLikelyKey(guardianKey)){
+        try{
+          const testUrl = `${GUARDIAN_BASE}?api-key=${encodeURIComponent(guardianKey)}&page-size=1&order-by=newest`;
+          await fetchJson(testUrl, { timeoutMs: 9000 });
+          out.guardian.ok = true;
+          out.guardian.msg = "Guardian key valid.";
+        } catch(e){
+          out.guardian.ok = false;
+          out.guardian.msg = humanizeGuardianError(e);
+        }
+      }else{
+        out.guardian.ok = false;
+        out.guardian.msg = "Key format looks invalid (too short or contains spaces).";
+      }
+
+      return out;
+    }
+
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
+    function escapeAttr(str){ return escapeHtml(str).replaceAll("`","&#96;"); }
+
+    // ====== Event Wiring ======
+    function openSettings(){
+      els.settingsPanel.open = true;
+      els.settingsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    els.openSettingsBtn.addEventListener("click", openSettings);
+    els.weatherGoBtn.addEventListener("click", () => {
+      const city = safeTrim(els.cityInput.value);
+      localStorage.setItem(STORAGE_KEYS.CITY, city);
+      loadWeather(city);
+    });
+
+    els.newsGoBtn.addEventListener("click", () => {
+      loadNews({
+        query: els.newsQuery.value,
+        section: els.newsSection.value,
+        orderBy: els.newsOrderBy.value
+      });
+    });
+
+    els.refreshBtn.addEventListener("click", () => {
+      const city = safeTrim(els.cityInput.value);
+      loadWeather(city || DEFAULT_CITY);
+      loadNews({
+        query: els.newsQuery.value,
+        section: els.newsSection.value,
+        orderBy: els.newsOrderBy.value
+      });
+    });
+
+    // Enter-to-run
+    els.cityInput.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){
+        e.preventDefault();
+        els.weatherGoBtn.click();
+      }
+    });
+    els.newsQuery.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){
+        e.preventDefault();
+        els.newsGoBtn.click();
+      }
+    });
+
+    // Auto-load when category/sort changes (professional UX)
+    els.newsSection.addEventListener("change", () => els.newsGoBtn.click());
+    els.newsOrderBy.addEventListener("change", () => els.newsGoBtn.click());
+
+    // Save & validate keys
+    els.saveKeysBtn.addEventListener("click", async () => {
+      const owm = safeTrim(els.owmKey.value);
+      const gdn = safeTrim(els.guardianKey.value);
+
+      if(!owm && !gdn){
+        showToast("warn","Nothing to save","Paste at least one API key, then click Save & Validate.");
+        return;
+      }
+
+      // Pre-validation feedback
+      setDot(els.settingsDot, "warn");
+      els.settingsStatusText.textContent = "Validating keys…";
+
+      const result = await validateKeys({ owmKey: owm, guardianKey: gdn });
+
+      // Save only keys that look at least plausible; (still allow saving even if API validation fails?).
+      // Here: save if format is plausible; show warning if validation failed.
+      if(isLikelyKey(owm)) writeKey(STORAGE_KEYS.OWM, owm);
+      if(isLikelyKey(gdn)) writeKey(STORAGE_KEYS.GUARDIAN, gdn);
+
+      updateKeyStatusUI();
+
+      const problems = [];
+      if(!result.owm.ok) problems.push("OpenWeatherMap: " + result.owm.msg);
+      if(!result.guardian.ok) problems.push("Guardian: " + result.guardian.msg);
+
+      if(problems.length === 0){
+        showToast("good","Keys saved","Both API keys validated and saved locally.");
+        setDot(els.settingsDot, "good");
+        els.settingsStatusText.textContent = "Keys saved and validated. Ready.";
+        // auto-refresh with new keys
+        els.refreshBtn.click();
+      }else{
+        showToast("warn","Saved with warnings", problems.join(" • "));
+        // Keep status as warn unless both missing
+        const hasOWM = isLikelyKey(readKey(STORAGE_KEYS.OWM));
+        const hasGDN = isLikelyKey(readKey(STORAGE_KEYS.GUARDIAN));
+        setDot(els.settingsDot, (hasOWM || hasGDN) ? "warn" : "bad");
+        els.settingsStatusText.textContent = "Saved, but one or both keys failed validation. Please verify and try again.";
+      }
+    });
+
+    // Test keys (no saving unless already present)
+    els.testKeysBtn.addEventListener("click", async () => {
+      const owm = safeTrim(els.owmKey.value);
+      const gdn = safeTrim(els.guardianKey.value);
+
+      setDot(els.settingsDot, "warn");
+      els.settingsStatusText.textContent = "Testing keys…";
+
+      const result = await validateKeys({ owmKey: owm, guardianKey: gdn });
+
+      const lines = [];
+      lines.push((result.owm.ok ? "✅ " : "⚠️ ") + result.owm.msg);
+      lines.push((result.guardian.ok ? "✅ " : "⚠️ ") + result.guardian.msg);
+
+      if(result.owm.ok && result.guardian.ok){
+        setDot(els.settingsDot, "good");
+        els.settingsStatusText.textContent = "Both keys validated successfully.";
+        showToast("good","Validation OK", lines.join(" "));
+      }else{
+        setDot(els.settingsDot, "warn");
+        els.settingsStatusText.textContent = "One or both keys failed validation.";
+        showToast("warn","Validation issues", lines.join(" "));
+      }
+    });
+
+    // Clear keys
+    els.clearKeysBtn.addEventListener("click", () => {
+      clearKeys();
+      updateKeyStatusUI();
+      showToast("warn","Keys cleared","API keys removed from localStorage on this device.");
+    });
+
+    // ====== Initial Load ======
+    (function init(){
+      // Load city preference
+      const savedCity = safeTrim(localStorage.getItem(STORAGE_KEYS.CITY)) || DEFAULT_CITY;
+      els.cityInput.value = savedCity;
+
+      updateKeyStatusUI();
+
+      // Render initial placeholders (news/weather)
+      renderWeatherLoading();
+      els.forecast.innerHTML = "";
+      renderNewsLoading();
+
+      // Auto-load if keys exist; otherwise show friendly messages
+      const hasOWM = isLikelyKey(readKey(STORAGE_KEYS.OWM));
+      const hasGDN = isLikelyKey(readKey(STORAGE_KEYS.GUARDIAN));
+
+      if(hasOWM){
+        loadWeather(savedCity);
+      }else{
+        renderWeatherError("Weather requires an OpenWeatherMap API key.");
+      }
+
+      if(hasGDN){
+        loadNews({ query: "", section: "", orderBy: "newest" });
+      }else{
+        renderNewsError("News requires a Guardian API key.");
+      }
+
+      // Make settings more discoverable when missing keys
+      if(!hasOWM || !hasGDN){
+        // gently hint user
+        showToast("warn","Set up API keys","Open “API Settings” to add your OpenWeatherMap and Guardian keys.");
+      }
+    })();
+  </script>
+</body>
+</html>
